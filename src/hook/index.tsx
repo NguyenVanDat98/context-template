@@ -17,7 +17,7 @@ type CreateContextProvider<T extends object> = {
   }>;
   useGetState: <R extends keyof T>(
     key: R
-  ) => [T[R], (dat: { [k in typeof key]: T[k] }) => any];
+  ) => [T[R], (dat: { [k in typeof key]: T[k] }) => any, boolean, (...rest:any[])=>void];
   Consumer: React.Consumer<{
     state: T;
     dispatch: React.Dispatch<Action<keyof T>>;
@@ -68,7 +68,18 @@ const createContextProvider = <T extends object>(
     const setState = (payload: { [k in typeof key]: T[k] }) => {
       dispatch({ type: "UPDATE", key, payload });
     };
-    return [state[key], setState];
+    let loading = false
+    const onSearch = async(call:(...rest:any[])=>any, ...params: (string|{[key:string]: string})[]):Promise<void>=>{
+      try {
+        loading = true
+        const data = await call(...params);
+        dispatch({ type: "UPDATE", key, payload:data})
+        loading = false
+      } catch (error) {
+        console.error('error onSearch',error)
+      }
+    }
+    return [ state[key], setState, loading, onSearch ];
   };
   return {
     Provider,
