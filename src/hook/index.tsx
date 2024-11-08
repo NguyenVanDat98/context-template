@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { defaultTo } from "lodash";
-import React, { createContext, useContext, useReducer, ReactNode } from "react";
+import React, { createContext, useContext, useReducer, ReactNode, useState } from "react";
 
 interface Action<T> {
   type: "UPDATE";
@@ -17,7 +17,7 @@ type CreateContextProvider<T extends object> = {
   }>;
   useGetState: <R extends keyof T>(
     key: R
-  ) => [T[R], (dat: { [k in typeof key]: T[k] }) => any, boolean, (...rest:any[])=>void];
+  ) => [T[R], (dat:  T[R] | never  ) => any, boolean, (...rest:any[])=>void];
   Consumer: React.Consumer<{
     state: T;
     dispatch: React.Dispatch<Action<keyof T>>;
@@ -61,21 +61,23 @@ const createContextProvider = <T extends object>(
 
   const useGetState: RootType["useGetState"] = (key) => {
     const context = useContext(MyContext);
+    const [loading,setLoading] =useState(false)
     if (!context) {
       throw new Error("useGetState must be used within a Provider");
     }
     const { state, dispatch } = context;
-    const setState = (payload: { [k in typeof key]: T[k] }) => {
+    const setState :ReturnType<RootType["useGetState"]>[1] = (payload) => {
       dispatch({ type: "UPDATE", key, payload });
     };
-    let loading = false
-    const onSearch = async(call:(...rest:any[])=>any, ...params: (string|{[key:string]: string})[]):Promise<void>=>{
+    const onSearch = async(call:(...rest:any[])=>Promise<any>, ...params: (string|{[key:string]: string})[]):Promise<void>=>{
       try {
-        loading = true
-        const data = await call(...params);
-        dispatch({ type: "UPDATE", key, payload:data})
-        loading = false
+        setLoading(true)
+        call(...params).then((data)=>{
+          dispatch({ type: "UPDATE", key, payload:data})
+          setLoading(false)
+        });
       } catch (error) {
+        setLoading(false)
         console.error('error onSearch',error)
       }
     }
