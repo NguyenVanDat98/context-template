@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { defaultTo } from "lodash";
-import React, { createContext, useContext, useReducer, ReactNode, useState } from "react";
+import { defaultTo, get } from "lodash";
+import React, { createContext, useContext, useReducer, ReactNode, useCallback } from "react";
 
 interface Action<T> {
-  type: "UPDATE";
-  key: T;
-  payload: any;
+  type: "UPDATE"|"SEARCH_REQUEST"|"SEARCH_END"|"SEARCH_FAIL";
+  field: T;
+  payload?: any;
 }
 
 type CreateContextProvider<T extends object> = {
@@ -33,7 +33,7 @@ const createContextProvider = <T extends object>(
 
   const MyContext = createContext<{
     state: State;
-    dispatch: React.Dispatch<Action<KeyState>>;
+    dispatch: React.Dispatch<Action<KeyState >>;
   }>({ state: init, dispatch: () => {} });
 
   const reducer = (
@@ -42,7 +42,13 @@ const createContextProvider = <T extends object>(
   ): State => {
     switch (action.type) {
       case "UPDATE":
-        return { ...state, [action.key]: action.payload };
+        return { ...state, ['loading_'+ action.field.toString()]: false, [action.field]: action.payload };
+      case "SEARCH_REQUEST":
+        return { ...state, ['loading_'+ action.field.toString()]: true };
+      case "SEARCH_END":
+        return { ...state, ['loading_'+ action.field.toString()]: false, [action.field]: action.payload };
+      case "SEARCH_FAIL":
+        return { ...state, ['loading_'+ action.field.toString()]: false };
       default:
         return { ...state };
     }
@@ -59,29 +65,29 @@ const createContextProvider = <T extends object>(
 
   const Consumer = MyContext.Consumer;
 
-  const useGetState: RootType["useGetState"] = (key) => {
+  const useGetState: RootType["useGetState"] = (field) => {
     const context = useContext(MyContext);
-    const [loading,setLoading] =useState(false)
     if (!context) {
       throw new Error("useGetState must be used within a Provider");
     }
     const { state, dispatch } = context;
     const setState :ReturnType<RootType["useGetState"]>[1] = (payload) => {
-      dispatch({ type: "UPDATE", key, payload });
+      dispatch({ type: "UPDATE", field, payload });
     };
-    const onSearch = async(call:(...rest:any[])=>Promise<any>, ...params: (string|{[key:string]: string})[]):Promise<void>=>{
+    const onSearch = useCallback(async(call:(...rest:any[])=>Promise<any>, ...params: (string|{[field:string]: string})[]):Promise<void>=>{
       try {
-        setLoading(true)
+        dispatch({ type: "SEARCH_REQUEST", field })
         call(...params).then((data)=>{
-          dispatch({ type: "UPDATE", key, payload:data})
-          setLoading(false)
+          dispatch({ type: "SEARCH_END", field, payload:data})
+        }).catch((e)=> {
+          throw new Error(e)
         });
       } catch (error) {
-        setLoading(false)
+        dispatch({ type: "SEARCH_FAIL", field})
         console.error('error onSearch',error)
       }
-    }
-    return [ state[key], setState, loading, onSearch ];
+    },[])
+    return [ state[field], setState, Boolean(get(state,['loading_'+String(field)])), onSearch ];
   };
   return {
     Provider,

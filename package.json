@@ -1,6 +1,6 @@
 {
-  "name": "context-provider",
-  "version": "1.0.0",
+  "name": "context-template",
+  "version": "1.0.4",
   "description": "",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
