@@ -1,9 +1,9 @@
 import React, { ReactNode } from 'react';
 
 interface Action<T> {
-    type: "UPDATE";
-    key: T;
-    payload: any;
+    type: "UPDATE" | "SEARCH_REQUEST" | "SEARCH_END" | "SEARCH_FAIL";
+    field: T;
+    payload?: any;
 }
 type CreateContextProvider<T extends object> = {
     Provider: React.FC<{
@@ -12,9 +12,7 @@ type CreateContextProvider<T extends object> = {
             [k in keyof T]: T[k];
         };
     }>;
-    useGetState: <R extends keyof T>(key: R) => [T[R], (dat: {
-        [k in typeof key]: T[k];
-    }) => any, boolean, (...rest: any[]) => void];
+    useGetState: <R extends keyof T>(key: R) => [T[R], (dat: T[R] | never) => any, boolean, (...rest: any[]) => void];
     Consumer: React.Consumer<{
         state: T;
         dispatch: React.Dispatch<Action<keyof T>>;
